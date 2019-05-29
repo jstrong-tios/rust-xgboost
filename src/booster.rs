@@ -6,7 +6,10 @@ use std::collections::{BTreeMap, HashMap};
 use std::path::{Path, PathBuf};
 use error::XGBError;
 use dmatrix::DMatrix;
+#[cfg(target_family = "unix")]
 use std::os::unix::ffi::OsStrExt;
+#[cfg(target_family = "windows")]
+use std::os::windows::ffi::OsStrExt;
 
 use xgboost_sys;
 use tempfile;
@@ -58,6 +61,13 @@ pub struct Booster {
     handle: xgboost_sys::BoosterHandle,
 }
 
+impl Default for Booster {
+    fn default() -> Self {
+        let params = BoosterParameters::default();
+        Booster::new(&params).unwrap()
+    }
+}
+
 impl Booster {
     /// Create a new Booster model with given parameters.
     ///
@@ -86,11 +96,15 @@ impl Booster {
     /// Save this Booster as a binary file at given path.
     pub fn save<P: AsRef<Path>>(&self, path: P) -> XGBResult<()> {
         debug!("Writing Booster to: {}", path.as_ref().display());
+        #[cfg(target_family = "unix")]
         let fname = ffi::CString::new(path.as_ref().as_os_str().as_bytes()).unwrap();
+        #[cfg(target_family = "windows")]
+        let fname = ffi::CString::new(path.as_ref().to_str().unwrap().as_bytes()).unwrap();
         xgb_call!(xgboost_sys::XGBoosterSaveModel(self.handle, fname.as_ptr()))
     }
 
     /// Load a Booster from a binary file at given path.
+    #[cfg(target_family = "unix")]
     pub fn load<P: AsRef<Path>>(path: P) -> XGBResult<Self> {
         debug!("Loading Booster from: {}", path.as_ref().display());
 
@@ -272,11 +286,11 @@ impl Booster {
         let mut s: Vec<xgboost_sys::DMatrixHandle> = dmats.iter().map(|x| x.handle).collect();
 
         // build separate arrays of C strings and pointers to them to ensure they live long enough
-        let mut evnames: Vec<ffi::CString> = Vec::with_capacity(names.len());
+        let mut evnames: Vec<std::ffi::CString> = Vec::with_capacity(names.len());
         let mut evptrs: Vec<*const libc::c_char> = Vec::with_capacity(names.len());
 
         for name in &names {
-            let cstr = ffi::CString::new(*name).unwrap();
+            let cstr = std::ffi::CString::new(*name).unwrap();
             evptrs.push(cstr.as_ptr());
             evnames.push(cstr);
         }
@@ -315,7 +329,7 @@ impl Booster {
 
     /// Get a string attribute that was previously set for this model.
     pub fn get_attribute(&self, key: &str) -> XGBResult<Option<String>> {
-        let key = ffi::CString::new(key).unwrap();
+        let key = std::ffi::CString::new(key).unwrap();
         let mut out_buf = ptr::null();
         let mut success = 0;
         xgb_call!(xgboost_sys::XGBoosterGetAttr(self.handle, key.as_ptr(), &mut out_buf, &mut success))?;
@@ -324,15 +338,15 @@ impl Booster {
         }
         assert!(success == 1);
 
-        let c_str: &ffi::CStr = unsafe { ffi::CStr::from_ptr(out_buf) };
+        let c_str: &std::ffi::CStr = unsafe { ffi::CStr::from_ptr(out_buf) };
         let out = c_str.to_str().unwrap();
         Ok(Some(out.to_owned()))
     }
 
     /// Store a string attribute in this model with given key.
     pub fn set_attribute(&mut self, key: &str, value: &str) -> XGBResult<()> {
-        let key = ffi::CString::new(key).unwrap();
-        let value = ffi::CString::new(value).unwrap();
+        let key = std::ffi::CString::new(key).unwrap();
+        let value = std::ffi::CString::new(value).unwrap();
         xgb_call!(xgboost_sys::XGBoosterSetAttr(self.handle, key.as_ptr(), value.as_ptr()))
     }
 
@@ -344,7 +358,7 @@ impl Booster {
 
         let out_ptr_slice = unsafe { slice::from_raw_parts(out, out_len as usize) };
         let out_vec = out_ptr_slice.iter()
-            .map(|str_ptr| unsafe { ffi::CStr::from_ptr(*str_ptr).to_str().unwrap().to_owned() })
+            .map(|str_ptr| unsafe { std::ffi::CStr::from_ptr(*str_ptr).to_str().unwrap().to_owned() })
             .collect();
         Ok(out_vec)
     }
@@ -496,11 +510,18 @@ impl Booster {
 
     fn dump_model_fmap(&self, with_statistics: bool, feature_map_path: Option<&PathBuf>) -> XGBResult<String> {
         let fmap = if let Some(path) = feature_map_path {
-            ffi::CString::new(path.as_os_str().as_bytes()).unwrap()
+            #[cfg(target_family = "unix")]
+            {
+                std::ffi::CString::new(path.as_os_str().as_bytes()).unwrap()
+            }
+            #[cfg(not(target_family = "unix"))]
+            {
+                std::ffi::CString::new(path.to_str().unwrap().as_bytes()).unwrap()
+            }
         } else {
-            ffi::CString::new("").unwrap()
+            std::ffi::CString::new("").unwrap()
         };
-        let format = ffi::CString::new("text").unwrap();
+        let format = std::ffi::CString::new("text").unwrap();
         let mut out_len = 0;
         let mut out_dump_array = ptr::null_mut();
         xgb_call!(xgboost_sys::XGBoosterDumpModelEx(self.handle,
@@ -512,7 +533,7 @@ impl Booster {
 
         let out_ptr_slice = unsafe { slice::from_raw_parts(out_dump_array, out_len as usize) };
         let out_vec: Vec<String> = out_ptr_slice.iter()
-            .map(|str_ptr| unsafe { ffi::CStr::from_ptr(*str_ptr).to_str().unwrap().to_owned() })
+            .map(|str_ptr| unsafe { std::ffi::CStr::from_ptr(*str_ptr).to_str().unwrap().to_owned() })
             .collect();
 
         assert_eq!(out_len as usize, out_vec.len());
@@ -530,8 +551,8 @@ impl Booster {
     }
 
     fn set_param(&mut self, name: &str, value: &str) -> XGBResult<()> {
-        let name = ffi::CString::new(name).unwrap();
-        let value = ffi::CString::new(value).unwrap();
+        let name = std::ffi::CString::new(name).unwrap();
+        let value = std::ffi::CString::new(value).unwrap();
         xgb_call!(xgboost_sys::XGBoosterSetParam(self.handle, name.as_ptr(), value.as_ptr()))
     }
 
@@ -669,13 +690,20 @@ mod tests {
     use super::*;
     use parameters::{self, learning, tree};
 
+    #[cfg(target_family = "unix")]
     fn read_train_matrix() -> XGBResult<DMatrix> {
         DMatrix::load("xgboost-sys/xgboost/demo/data/agaricus.txt.train")
     }
 
+    #[cfg(target_family = "unix")]
     fn load_test_booster() -> Booster {
         let dmat = read_train_matrix().expect("Reading train matrix failed");
         Booster::new_with_cached_dmats(&BoosterParameters::default(), &[&dmat]).expect("Creating Booster failed")
+    }
+
+    #[cfg(not(target_family = "unix"))]
+    fn load_test_booster() -> Booster {
+        Booster::default()
     }
 
     #[test]
@@ -685,6 +713,7 @@ mod tests {
         assert!(res.is_ok());
     }
 
+    #[cfg(target_family = "unix")]
     #[test]
     fn load_rabit_version() {
         let version = load_test_booster().load_rabit_checkpoint().unwrap();
@@ -702,6 +731,7 @@ mod tests {
         assert_eq!(attr, Some("bar".to_owned()));
     }
 
+    #[cfg(target_family = "unix")]
     #[test]
     fn save_and_load_from_buffer() {
         let mut booster = load_test_booster();
@@ -740,6 +770,7 @@ mod tests {
         assert_eq!(attrs, expected);
     }
 
+    #[cfg(target_family = "unix")]
     #[test]
     fn predict() {
         let dmat_train = DMatrix::load("xgboost-sys/xgboost/demo/data/agaricus.txt.train").unwrap();
@@ -816,6 +847,7 @@ mod tests {
         }
     }
 
+    #[cfg(target_family = "unix")]
     #[test]
     fn predict_leaf() {
         let dmat_train = DMatrix::load("xgboost-sys/xgboost/demo/data/agaricus.txt.train").unwrap();
@@ -849,6 +881,7 @@ mod tests {
         assert_eq!(shape, (num_samples, num_rounds as usize));
     }
 
+    #[cfg(target_family = "unix")]
     #[test]
     fn predict_contributions() {
         let dmat_train = DMatrix::load("xgboost-sys/xgboost/demo/data/agaricus.txt.train").unwrap();
@@ -883,6 +916,7 @@ mod tests {
         assert_eq!(shape, (num_samples, num_features + 1));
     }
 
+    #[cfg(target_family = "unix")]
     #[test]
     fn predict_interactions() {
         let dmat_train = DMatrix::load("xgboost-sys/xgboost/demo/data/agaricus.txt.train").unwrap();
@@ -935,6 +969,7 @@ mod tests {
         assert_eq!(Booster::parse_eval_string(s, &["train", "test"]), metrics);
     }
 
+    #[cfg(target_family = "unix")]
     #[test]
     fn dump_model() {
         let dmat_train = DMatrix::load("xgboost-sys/xgboost/demo/data/agaricus.txt.train").unwrap();
@@ -1024,6 +1059,7 @@ mod tests {
 0:[odor=anise] yes=2,no=1,gain=11.7128553,cover=53.3251991
 	1:[ring-type=sheathing] yes=4,no=3,gain=12.546154,cover=44.299942
 		3:leaf=-0.515293062,cover=15.7899179
+		4:leaf=0.56883812,cover=28.5100231
 		4:leaf=0.56883812,cover=28.5100231
 	2:leaf=-1.01502442,cover=9.02525806
 

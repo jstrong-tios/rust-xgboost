@@ -1,5 +1,6 @@
 use std::{slice, ffi, ptr, path::Path};
 use libc::{c_uint, c_float};
+#[cfg(target_family = "unix")]
 use std::os::unix::ffi::OsStrExt;
 
 use xgboost_sys;
@@ -183,6 +184,7 @@ impl DMatrix {
     /// 1 9:1 11:0.375 15:1
     /// 0 1:0 8:0.22 11:1
     /// ```
+    #[cfg(target_family = "unix")]
     pub fn load<P: AsRef<Path>>(path: P) -> XGBResult<Self> {
         debug!("Loading DMatrix from: {}", path.as_ref().display());
         let mut handle = ptr::null_mut();
@@ -193,6 +195,7 @@ impl DMatrix {
     }
 
     /// Serialise this `DMatrix` as a binary file to given path.
+    #[cfg(target_family = "unix")]
     pub fn save<P: AsRef<Path>>(&self, path: P) -> XGBResult<()> {
         debug!("Writing DMatrix to: {}", path.as_ref().display());
         let fname = ffi::CString::new(path.as_ref().as_os_str().as_bytes()).unwrap();
@@ -283,7 +286,7 @@ impl DMatrix {
     }
 
     fn get_float_info(&self, field: &str) -> XGBResult<&[f32]> {
-        let field = ffi::CString::new(field).unwrap();
+        let field = std::ffi::CString::new(field).unwrap();
         let mut out_len = 0;
         let mut out_dptr = ptr::null();
         xgb_call!(xgboost_sys::XGDMatrixGetFloatInfo(self.handle,
@@ -295,7 +298,7 @@ impl DMatrix {
     }
 
     fn set_float_info(&mut self, field: &str, array: &[f32]) -> XGBResult<()> {
-        let field = ffi::CString::new(field).unwrap();
+        let field = std::ffi::CString::new(field).unwrap();
         xgb_call!(xgboost_sys::XGDMatrixSetFloatInfo(self.handle,
                                                      field.as_ptr(),
                                                      array.as_ptr(),
@@ -303,7 +306,7 @@ impl DMatrix {
     }
 
     fn get_uint_info(&self, field: &str) -> XGBResult<&[u32]> {
-        let field = ffi::CString::new(field).unwrap();
+        let field = std::ffi::CString::new(field).unwrap();
         let mut out_len = 0;
         let mut out_dptr = ptr::null();
         xgb_call!(xgboost_sys::XGDMatrixGetUIntInfo(self.handle,
@@ -315,7 +318,7 @@ impl DMatrix {
     }
 
     fn set_uint_info(&mut self, field: &str, array: &[u32]) -> XGBResult<()> {
-        let field = ffi::CString::new(field).unwrap();
+        let field = std::ffi::CString::new(field).unwrap();
         xgb_call!(xgboost_sys::XGDMatrixSetUIntInfo(self.handle,
                                                     field.as_ptr(),
                                                     array.as_ptr(),
@@ -329,6 +332,7 @@ impl Drop for DMatrix {
     }
 }
 
+#[cfg(target_family = "unix")]
 #[cfg(test)]
 mod tests {
     use tempfile;
