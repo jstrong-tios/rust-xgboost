@@ -997,7 +997,7 @@ mod tests {
         let features = FeatureMap::from_file("xgboost-sys/xgboost/demo/data/featmap.txt")
             .expect("failed to parse feature map file");
 
-        assert_eq!(booster.dump_model(true, Some(&features)).unwrap(),
+        let saved_ref: &str =
 "0:[odor=pungent] yes=2,no=1,gain=4000.53101,cover=1628.25
 	1:[stalk-root=cup] yes=4,no=3,gain=1158.21204,cover=924.5
 		3:leaf=1.71217716,cover=812
@@ -1060,7 +1060,6 @@ mod tests {
 	1:[ring-type=sheathing] yes=4,no=3,gain=12.546154,cover=44.299942
 		3:leaf=-0.515293062,cover=15.7899179
 		4:leaf=0.56883812,cover=28.5100231
-		4:leaf=0.56883812,cover=28.5100231
 	2:leaf=-1.01502442,cover=9.02525806
 
 0:[population=numerous] yes=2,no=1,gain=14.8892794,cover=45.9312019
@@ -1070,6 +1069,11 @@ mod tests {
 	2:[stalk-surface-above-ring=fibrous] yes=6,no=5,gain=19.3462334,cover=2.87474418
 		5:leaf=3.63442755,cover=1.34154534
 		6:leaf=-0.609474957,cover=1.53319895
-");
+";
+        let actual: String = booster.dump_model(true, Some(&features)).unwrap();
+        //println!("{}", actual);
+        //println!("***");
+        //println!("{}", saved_ref);
+        assert_eq!(actual, saved_ref);
     }
 }
