@@ -57,7 +57,7 @@ impl LinearBoosterParameters {
 
         v.push(("lambda".to_owned(), self.lambda.to_string()));
         v.push(("alpha".to_owned(), self.alpha.to_string()));
-        v.push(("updater".to_owned(), self.updater.to_string()));
+        //v.push(("updater".to_owned(), self.updater.to_string()));
 
         v
     }
