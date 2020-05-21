@@ -239,6 +239,14 @@ pub struct TreeBoosterParameters {
     /// * default: 1.0
     colsample_bylevel: f32,
 
+    /// The subsample ratio of columns for each node (split). Subsampling occurs
+    /// once every time a new split is evaluated. Columns are subsampled from the
+    /// set of columns chosen for the current level.
+    ///
+    /// * range: (0.0, 1.0]
+    /// * default: 1.0
+    colsample_bynode: f32,
+
     /// L2 regularization term on weights, increase this value will make model more conservative.
     ///
     /// * default: 1
@@ -304,6 +312,13 @@ pub struct TreeBoosterParameters {
     ///
     /// * default: [`Predictor::Cpu`](enum.Predictor.html#variant.Cpu)
     predictor: Predictor,
+
+    /// Number of parallel trees constructed during each iteration. This option is used to support
+    /// boosted random forest.
+    ///
+    /// * default: 1
+    #[builder(default = "1u32")]
+    num_parallel_tree: u32,
 }
 
 impl Default for TreeBoosterParameters {
@@ -317,6 +332,7 @@ impl Default for TreeBoosterParameters {
             subsample: 1.0,
             colsample_bytree: 1.0,
             colsample_bylevel: 1.0,
+            colsample_bynode: 1.0,
             lambda: 1,
             alpha: 0,
             tree_method: TreeMethod::default(),
@@ -329,6 +345,7 @@ impl Default for TreeBoosterParameters {
             max_leaves: 0,
             max_bin: 256,
             predictor: Predictor::default(),
+            num_parallel_tree: 1,
         }
     }
 }
@@ -347,6 +364,7 @@ impl TreeBoosterParameters {
         v.push(("subsample".to_owned(), self.subsample.to_string()));
         v.push(("colsample_bytree".to_owned(), self.colsample_bytree.to_string()));
         v.push(("colsample_bylevel".to_owned(), self.colsample_bylevel.to_string()));
+        v.push(("colsample_bynode".to_owned(), self.colsample_bynode.to_string()));
         v.push(("lambda".to_owned(), self.lambda.to_string()));
         v.push(("alpha".to_owned(), self.alpha.to_string()));
         v.push(("tree_method".to_owned(), self.tree_method.to_string()));
@@ -359,6 +377,7 @@ impl TreeBoosterParameters {
         v.push(("max_leaves".to_owned(), self.max_leaves.to_string()));
         v.push(("max_bin".to_owned(), self.max_bin.to_string()));
         v.push(("predictor".to_owned(), self.predictor.to_string()));
+        v.push(("num_parallel_tree".to_owned(), self.num_parallel_tree.to_string()));
 
         v
     }
@@ -370,6 +389,7 @@ impl TreeBoosterParametersBuilder {
         Interval::new_open_closed(0.0, 1.0).validate(&self.subsample, "subsample")?;
         Interval::new_open_closed(0.0, 1.0).validate(&self.colsample_bytree, "colsample_bytree")?;
         Interval::new_open_closed(0.0, 1.0).validate(&self.colsample_bylevel, "colsample_bylevel")?;
+        Interval::new_open_closed(0.0, 1.0).validate(&self.colsample_bynode, "colsample_bynode")?;
         Interval::new_open_open(0.0, 1.0).validate(&self.sketch_eps, "sketch_eps")?;
         Ok(())
     }
