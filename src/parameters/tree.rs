@@ -352,7 +352,7 @@ impl TreeBoosterParameters {
         v.push(("tree_method".to_owned(), self.tree_method.to_string()));
         v.push(("sketch_eps".to_owned(), self.sketch_eps.to_string()));
         v.push(("scale_pos_weight".to_owned(), self.scale_pos_weight.to_string()));
-        v.push(("updater".to_owned(), self.updater.iter().map(|u| u.to_string()).collect::<Vec<String>>().join(",")));
+        //v.push(("updater".to_owned(), self.updater.iter().map(|u| u.to_string()).collect::<Vec<String>>().join(",")));
         v.push(("refresh_leaf".to_owned(), (self.refresh_leaf as u8).to_string()));
         v.push(("process_type".to_owned(), self.process_type.to_string()));
         v.push(("grow_policy".to_owned(), self.grow_policy.to_string()));
