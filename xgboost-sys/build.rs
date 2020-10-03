@@ -1,4 +1,5 @@
 extern crate bindgen;
+extern crate cmake;
 
 use std::process::Command;
 use std::env;
@@ -8,6 +9,7 @@ fn main() {
     let target = env::var("TARGET").unwrap();
     let out_dir = env::var("OUT_DIR").unwrap();
     let xgb_root = Path::new(&out_dir).join("xgboost");
+    eprintln!("xgb_root = {}", xgb_root.display());
 
     // copy source code into OUT_DIR for compilation if it doesn't exist
     if !xgb_root.exists() {
@@ -22,12 +24,20 @@ fn main() {
     // TODO: allow for dynamic/static linking
     // TODO: check whether rabit should be built/linked
     if !xgb_root.join("lib").exists() {
+        let dst = cmake::build("xgboost");
+        eprintln!("cmake::build dst -> {}", dst.display());
+        println!("cargo:rustc-link-search=native={}", dst.display());
+        println!("cargo:rustc-link-search=native={}", dst.join("build").display());
+        println!("cargo:rustc-link-search=native={}", dst.join("lib").display());
+        //println!("cargo:rustc-link-lib=static=xgboost");
+        /*
         // TODO: better checks for build completion, currently xgboost's build script can run
         // `make clean_all` if openmp build fails
         Command::new(xgb_root.join("build.sh"))
             .current_dir(&xgb_root)
             .status()
             .expect("Failed to execute XGBoost build.sh script.");
+        */
     }
 
     let xgb_root = xgb_root.canonicalize().unwrap();
@@ -45,11 +55,12 @@ fn main() {
         .expect("Couldn't write bindings.");
 
     println!("cargo:rustc-link-search={}", xgb_root.join("lib").display());
-    println!("cargo:rustc-link-search={}", xgb_root.join("rabit/lib").display());
-    println!("cargo:rustc-link-search={}", xgb_root.join("dmlc-core").display());
+    println!("cargo:rustc-link-search={}", xgb_root.join("build/rabit/lib").display());
+    println!("cargo:rustc-link-search={}", xgb_root.join("build/rabit").display());
+    println!("cargo:rustc-link-search={}", xgb_root.join("build/dmlc-core").display());
 
     // check if built with multithreading support, otherwise link to dummy lib
-    if xgb_root.join("rabit/lib/librabit.a").exists() {
+    if true || xgb_root.join("build/rabit/lib/librabit.a").exists() {
         println!("cargo:rustc-link-lib=static=rabit");
         println!("cargo:rustc-link-lib=dylib=gomp");
     } else {
@@ -64,5 +75,5 @@ fn main() {
     }
 
     println!("cargo:rustc-link-lib=static=dmlc");
-    println!("cargo:rustc-link-lib=static=xgboost");
+    println!("cargo:rustc-link-lib=dylib=xgboost");
 }
