@@ -95,7 +95,7 @@ impl Booster {
 
     /// Returns a `Vec<u8>` that contains the serialized model. Can be reconstituted into a
     /// `Booster` with TODO
-    pub fn serialize_to_buffer(&mut self) -> XGBResult<Vec<u8>> {
+    pub fn serialize_to_buffer(&self) -> XGBResult<Vec<u8>> {
         debug!("Writing Booster to_vec");
         let mut out_len = 0;
         let mut out_result = ptr::null();
