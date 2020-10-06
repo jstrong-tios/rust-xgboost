@@ -23,12 +23,19 @@ fn main() {
 
     // TODO: allow for dynamic/static linking
     // TODO: check whether rabit should be built/linked
+    let cmake_dst = cmake::build(&xgb_root);
+    println!("cargo:rustc-link-search=native={}", cmake_dst.display());
+    println!("cargo:rustc-link-search=native={}", cmake_dst.join("lib").display());
+    println!("cargo:rustc-link-search=native={}", cmake_dst.join("rabit/include").display());
+
+    /*
     if !xgb_root.join("lib").exists() {
         let dst = cmake::build("xgboost");
         eprintln!("cmake::build dst -> {}", dst.display());
         println!("cargo:rustc-link-search=native={}", dst.display());
-        println!("cargo:rustc-link-search=native={}", dst.join("build").display());
+        //println!("cargo:rustc-link-search=native={}", dst.join("build").display());
         println!("cargo:rustc-link-search=native={}", dst.join("lib").display());
+        println!("cargo:rustc-link-search=native={}", dst.join("rabit/include").display());
         //println!("cargo:rustc-link-lib=static=xgboost");
         /*
         // TODO: better checks for build completion, currently xgboost's build script can run
@@ -41,11 +48,12 @@ fn main() {
     }
 
     let xgb_root = xgb_root.canonicalize().unwrap();
+    */
 
     let bindings = bindgen::Builder::default()
         .header("wrapper.h")
-        .clang_arg(format!("-I{}", xgb_root.join("include").display()))
-        .clang_arg(format!("-I{}", xgb_root.join("rabit/include").display()))
+        .clang_arg(format!("-I{}", cmake_dst.join("include").display()))
+        .clang_arg(format!("-I{}", cmake_dst.join("rabit/include").display()))
         .generate()
         .expect("Unable to generate bindings.");
 
