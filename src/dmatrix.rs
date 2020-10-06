@@ -7,7 +7,7 @@ use xgboost_sys;
 
 use super::{XGBResult, XGBError};
 
-static KEY_ROOT_INDEX: &'static str = "root_index";
+//static KEY_ROOT_INDEX: &'static str = "root_index";
 static KEY_LABEL: &'static str = "label";
 static KEY_WEIGHT: &'static str = "weight";
 static KEY_BASE_MARGIN: &'static str = "base_margin";
@@ -230,6 +230,18 @@ impl DMatrix {
         Ok(DMatrix::new(out_handle)?)
     }
 
+    /*
+     * \brief Set meta info from dense matrix.  Valid field names are:
+     *
+     *  - label
+     *  - weight
+     *  - base_margin
+     *  - group
+     *  - label_lower_bound
+     *  - label_upper_bound
+     *  - feature_weights
+ 
+
     /// Gets the specified root index of each instance, can be used for multi task setting.
     ///
     /// See the XGBoost documentation for more information.
@@ -243,6 +255,7 @@ impl DMatrix {
     pub fn set_root_index(&mut self, array: &[u32]) -> XGBResult<()> {
         self.set_uint_info(KEY_ROOT_INDEX, array)
     }
+     */
 
     /// Get ground truth labels for each row of this matrix.
     pub fn get_labels(&self) -> XGBResult<&[f32]> {
@@ -305,6 +318,7 @@ impl DMatrix {
                                                      array.len() as u64))
     }
 
+    /*
     fn get_uint_info(&self, field: &str) -> XGBResult<&[u32]> {
         let field = std::ffi::CString::new(field).unwrap();
         let mut out_len = 0;
@@ -324,6 +338,7 @@ impl DMatrix {
                                                     array.as_ptr(),
                                                     array.len() as u64))
     }
+    */
 }
 
 impl Drop for DMatrix {
@@ -371,15 +386,22 @@ mod tests {
         // TODO: check contents as well, if possible
     }
 
+    /*
+     * this is 
     #[test]
     fn get_set_root_index() {
         let mut dmat = read_train_matrix().unwrap();
+        /*
+        if let Err(e) = dmat.get_root_index() { println!("{}", e); }
         assert_eq!(dmat.get_root_index().unwrap(), &[]);
+        */
 
         let root_index = [3, 22, 1];
+        if let Err(e) = dmat.set_root_index(&root_index) { println!("{}", e); }
         assert!(dmat.set_root_index(&root_index).is_ok());
         assert_eq!(dmat.get_root_index().unwrap(), &[3, 22, 1]);
     }
+    */
 
     #[test]
     fn get_set_labels() {
@@ -426,6 +448,9 @@ mod tests {
         let data = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
 
         let dmat = DMatrix::from_csr(&indptr, &indices, &data, None).unwrap();
+        let dmat2 = DMatrix::from_csr(&indptr, &indices, &data, Some(10)).unwrap();
+        let dmat3 = DMatrix::from_csr(&indptr, &indices, &data, Some(3)).unwrap();
+        dbg!(dmat.shape(), dmat2.shape(), dmat3.shape());
         assert_eq!(dmat.num_rows(), 4);
         assert_eq!(dmat.num_cols(), 3);
 
