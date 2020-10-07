@@ -112,6 +112,28 @@ impl Booster {
         Ok(data)
     }
 
+    pub fn get_model_raw(&self) -> XGBResult<Vec<u8>> {
+        debug!("Writing Booster to_vec");
+        let mut out_len = 0;
+        let mut out_result = ptr::null();
+        xgb_call!(
+            xgboost_sys::XGBoosterGetModelRaw(
+                self.handle, 
+                &mut out_len,
+                &mut out_result,
+            )
+        )?;
+        assert!(!out_result.is_null());
+        let data: Vec<i8> = unsafe { 
+            let bytes: &[i8] = slice::from_raw_parts(out_result, out_len as usize);
+            let mut out = Vec::with_capacity(bytes.len());
+            out.extend_from_slice(bytes);
+            out
+        };
+        let data: Vec<u8> = unsafe { std::mem::transmute(data) };
+        Ok(data)
+    }
+
     pub fn unserialize_from_buffer(bytes: &[u8]) -> XGBResult<Self> {
         debug!("Unserializing Booster from buffer (length = {})", bytes.len());
         let mut handle = ptr::null_mut();
@@ -813,6 +835,31 @@ mod tests {
         let booster = Booster::load_buffer(&bytes[..]).expect("load booster from buffer");
         let attr = booster.get_attribute("foo").expect("Getting attribute failed");
         assert_eq!(attr, Some("bar".to_owned()));
+    }
+
+    #[cfg(target_family = "unix")]
+    #[test]
+    fn get_model_raw_and_load_from_buffer() {
+        let mut booster = load_trained_booster();
+        let attr = booster.get_attribute("foo").expect("Getting attribute failed");
+        assert_eq!(attr, None);
+
+        booster.set_attribute("foo", "bar").expect("Setting attribute failed");
+        let attr = booster.get_attribute("foo").expect("Getting attribute failed");
+        assert_eq!(attr, Some("bar".to_owned()));
+
+        let dmat_test = DMatrix::load("xgboost-sys/xgboost/demo/data/agaricus.txt.test").unwrap();
+        let p1 = booster.predict(&dmat_test).unwrap();
+
+        let bytes = booster.get_model_raw().unwrap();
+
+        let booster = Booster::load_buffer(&bytes[..]).expect("load booster from buffer");
+        let attr = booster.get_attribute("foo").expect("Getting attribute failed");
+        assert_eq!(attr, Some("bar".to_owned()));
+
+        let p2 = booster.predict(&dmat_test).unwrap();
+
+        assert_relative_eq!(&p1[..], &p2[..]);
     }
 
     #[cfg(target_family = "unix")]

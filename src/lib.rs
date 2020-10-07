@@ -64,6 +64,9 @@ extern crate xgboost_sys;
 extern crate libc;
 extern crate tempfile;
 extern crate indexmap;
+#[cfg(test)]
+#[macro_use]
+extern crate approx;
 
 #[macro_use]
 macro_rules! xgb_call {
