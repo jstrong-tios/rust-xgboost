@@ -1,6 +1,6 @@
 [package]
 name = "xgboost"
-version = "0.1.4"
+version = "0.2.0"
 authors = ["Dave Challis <dave@suicas.net>"]
 license = "MIT"
 repository = "https://github.com/davechallis/rust-xgboost"
