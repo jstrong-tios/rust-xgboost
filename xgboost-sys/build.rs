@@ -21,34 +21,12 @@ fn main() {
             });
     }
 
-    // TODO: allow for dynamic/static linking
-    // TODO: check whether rabit should be built/linked
-    let cmake_dst = cmake::build(&xgb_root);
+    let cmake_dst = cmake::Config::new(&xgb_root)
+        .define("BUILD_STATIC_LIB", "ON")
+        .build();
+
     println!("cargo:rustc-link-search=native={}", cmake_dst.display());
     println!("cargo:rustc-link-search=native={}", cmake_dst.join("lib").display());
-    println!("cargo:rustc-link-search=native={}", cmake_dst.join("rabit/include").display());
-
-    /*
-    if !xgb_root.join("lib").exists() {
-        let dst = cmake::build("xgboost");
-        eprintln!("cmake::build dst -> {}", dst.display());
-        println!("cargo:rustc-link-search=native={}", dst.display());
-        //println!("cargo:rustc-link-search=native={}", dst.join("build").display());
-        println!("cargo:rustc-link-search=native={}", dst.join("lib").display());
-        println!("cargo:rustc-link-search=native={}", dst.join("rabit/include").display());
-        //println!("cargo:rustc-link-lib=static=xgboost");
-        /*
-        // TODO: better checks for build completion, currently xgboost's build script can run
-        // `make clean_all` if openmp build fails
-        Command::new(xgb_root.join("build.sh"))
-            .current_dir(&xgb_root)
-            .status()
-            .expect("Failed to execute XGBoost build.sh script.");
-        */
-    }
-
-    let xgb_root = xgb_root.canonicalize().unwrap();
-    */
 
     let bindings = bindgen::Builder::default()
         .header("wrapper.h")
@@ -62,13 +40,8 @@ fn main() {
         .write_to_file(out_path.join("bindings.rs"))
         .expect("Couldn't write bindings.");
 
-    println!("cargo:rustc-link-search={}", xgb_root.join("lib").display());
-    println!("cargo:rustc-link-search={}", xgb_root.join("build/rabit/lib").display());
-    println!("cargo:rustc-link-search={}", xgb_root.join("build/rabit").display());
-    println!("cargo:rustc-link-search={}", xgb_root.join("build/dmlc-core").display());
-
     // check if built with multithreading support, otherwise link to dummy lib
-    if true || xgb_root.join("build/rabit/lib/librabit.a").exists() {
+    if cmake_dst.join("lib/librabit.a").exists() {
         println!("cargo:rustc-link-lib=static=rabit");
         println!("cargo:rustc-link-lib=dylib=gomp");
     } else {
@@ -83,5 +56,5 @@ fn main() {
     }
 
     println!("cargo:rustc-link-lib=static=dmlc");
-    println!("cargo:rustc-link-lib=dylib=xgboost");
+    println!("cargo:rustc-link-lib=static=xgboost");
 }

@@ -402,6 +402,7 @@ impl Booster {
                                                 dmat.handle,
                                                 option_mask,
                                                 ntree_limit,
+                                                0,
                                                 &mut out_len,
                                                 &mut out_result))?;
 
@@ -422,6 +423,7 @@ impl Booster {
                                                 dmat.handle,
                                                 option_mask,
                                                 ntree_limit,
+                                                0,
                                                 &mut out_len,
                                                 &mut out_result))?;
         assert!(!out_result.is_null());
@@ -444,6 +446,7 @@ impl Booster {
                                                 dmat.handle,
                                                 option_mask,
                                                 ntree_limit,
+                                                0,
                                                 &mut out_len,
                                                 &mut out_result))?;
         assert!(!out_result.is_null());
@@ -470,6 +473,7 @@ impl Booster {
                                                 dmat.handle,
                                                 option_mask,
                                                 ntree_limit,
+                                                0,
                                                 &mut out_len,
                                                 &mut out_result))?;
         assert!(!out_result.is_null());
@@ -497,6 +501,7 @@ impl Booster {
                                                 dmat.handle,
                                                 option_mask,
                                                 ntree_limit,
+                                                0,
                                                 &mut out_len,
                                                 &mut out_result))?;
         assert!(!out_result.is_null());
@@ -728,6 +733,37 @@ mod tests {
         Booster::new_with_cached_dmats(&BoosterParameters::default(), &[&dmat]).expect("Creating Booster failed")
     }
 
+    #[cfg(target_family = "unix")]
+    fn load_trained_booster() -> Booster {
+        let dmat_train = DMatrix::load("xgboost-sys/xgboost/demo/data/agaricus.txt.train").unwrap();
+        let dmat_test = DMatrix::load("xgboost-sys/xgboost/demo/data/agaricus.txt.test").unwrap();
+
+        let tree_params = tree::TreeBoosterParametersBuilder::default()
+            .max_depth(2)
+            .eta(1.0)
+            .build()
+            .unwrap();
+        let learning_params = learning::LearningTaskParametersBuilder::default()
+            .objective(learning::Objective::BinaryLogistic)
+            .eval_metrics(learning::Metrics::Custom(vec![learning::EvaluationMetric::MAPCutNegative(4),
+                                                         learning::EvaluationMetric::LogLoss,
+                                                         learning::EvaluationMetric::BinaryErrorRate(0.5)]))
+            .build()
+            .unwrap();
+        let params = parameters::BoosterParametersBuilder::default()
+            .booster_type(parameters::BoosterType::Tree(tree_params))
+            .learning_params(learning_params)
+            .verbose(false)
+            .build()
+            .unwrap();
+        let mut booster = Booster::new_with_cached_dmats(&params, &[&dmat_train, &dmat_test]).unwrap();
+
+        for i in 0..10 {
+            booster.update(&dmat_train, i).expect("update failed");
+        }
+        booster
+    }
+
     #[cfg(not(target_family = "unix"))]
     fn load_test_booster() -> Booster {
         Booster::default()
@@ -761,7 +797,7 @@ mod tests {
     #[cfg(target_family = "unix")]
     #[test]
     fn save_and_load_from_buffer() {
-        let mut booster = load_test_booster();
+        let mut booster = load_trained_booster();
         let attr = booster.get_attribute("foo").expect("Getting attribute failed");
         assert_eq!(attr, None);
 
@@ -782,9 +818,7 @@ mod tests {
     #[cfg(target_family = "unix")]
     #[test]
     fn serialize_and_unserialize_from_buffer() {
-        let mut booster = load_test_booster();
-        let attr = booster.get_attribute("foo").expect("Getting attribute failed");
-        assert_eq!(attr, None);
+        let mut booster = load_trained_booster();
 
         booster.set_attribute("foo", "bar").expect("Setting attribute failed");
         let attr = booster.get_attribute("foo").expect("Getting attribute failed");
